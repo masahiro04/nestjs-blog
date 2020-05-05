@@ -1,20 +1,25 @@
 import {ConflictException, Injectable, InternalServerErrorException, UnauthorizedException} from '@nestjs/common';
-import {RegisterDto} from '../models/user.dto';
+import {LoginDto, RegisterDto} from '../models/user.model';
 import {InjectRepository} from '@nestjs/typeorm';
 import {UserEntity} from '../entities/user.entity';
 import {Repository} from 'typeorm';
+import {JwtService} from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(UserEntity) private readonly userRepo: Repository<UserEntity>) {
+    @InjectRepository(UserEntity) private readonly userRepo: Repository<UserEntity>,
+    private readonly jwtService: JwtService
+  ) {
   }
   
   public async register(credentials: RegisterDto) {
     try {
       const user = this.userRepo.create(credentials);
       await user.save();
-      return user;
+      const payload = {username: user.username};
+      const token = this.jwtService.sign(payload);
+      return {user: {...user.toJson(), token}};
     } catch (err) {
       if (err.code === '23505') {
         throw new ConflictException('Username has already been taken');
@@ -23,14 +28,16 @@ export class AuthService {
     }
   }
   
-  public async login({email, password}) {
+  public async login({email, password}: LoginDto) {
     try {
-      const user = this.userRepo.findOne({where: {email: email}});
-      const isValid = (await user).comparePassword(password);
+      const user = await this.userRepo.findOne({where: {email}});
+      const isValid = await user.comparePassword(password);
       if (!isValid) {
-        return user;
+        throw new UnauthorizedException('Invalid credentials');
       }
-      throw new UnauthorizedException('Invalid credentials');
+      const payload = {username: user.username};
+      const token = this.jwtService.sign(payload);
+      return {user: {...user.toJson(), token}};
     } catch (err) {
       throw new UnauthorizedException('Invalid credentials');
     }
