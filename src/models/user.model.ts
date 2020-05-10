@@ -1,5 +1,5 @@
 import {
-  IsEmail, IsString, MaxLength, MinLength
+  IsEmail, IsOptional, IsString, MaxLength, MinLength
 } from 'class-validator';
 
 export class LoginDto {
@@ -19,6 +19,19 @@ export class RegisterDto extends LoginDto {
   @MaxLength(20)
   username: string;
 }
+
+export class UpdateUserDto {
+  @IsEmail()
+  @IsOptional()
+  email: string;
+  
+  @IsOptional()
+  image: string;
+  
+  @IsOptional()
+  bio: string;
+}
+
 
 export interface AuthPayload {
   username: string;
